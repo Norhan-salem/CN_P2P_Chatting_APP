@@ -8,26 +8,64 @@ import threading
 import select
 import logging
 import db
+import re
 
+# Password validation phase 2 :/
+def is_password_valid(password):
+    # at least 8 characters
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    # contains at least one numeral
+    if not re.search(r'\d', password):
+        return False, "Password must contain at least one numeral."
+    # contains at least one capital letter
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one capital letter."
+    # contains at least one special character
+    if not re.search(r'\W', password):
+        return False, "Password must contain at least one special character."
+    return True, "Password is valid."
 
-# This class is used to process the peer messages sent to registry
-# for each peer connected to registry, a new client thread is created
-class ClientThread(threading.Thread):
-    # initializations for client thread
-    def __init__(self, ip, port, tcpClientSocket):
-        threading.Thread.__init__(self)
-        # ip of the connected peer
-        self.lock = None
-        self.ip = ip
-        # port number of the connected peer
-        self.port = port
-        # socket of the peer
-        self.tcpClientSocket = tcpClientSocket
-        # username, online status and udp server initializations
-        self.username = None
-        self.isOnline = True
-        self.udpServer = None
-        print("New thread started for " + ip + ":" + str(port))
+# Password hashing phase 2 :/
+def hash_password(password):
+    # Hash a password for the first time
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    return hashed.decode()
+
+def check_password(hashed_password, user_password):
+    # Check hashed password
+    return bcrypt.checkpw(user_password.encode(), hashed_password.encode())
+
+while True:
+    try:
+        # waits for incoming messages from peers
+        message = self.tcpClientSocket.recv(1024).decode().split()
+        logging.info("Received from " + self.ip + ":" + str(self.port) + " -> " + " ".join(message))
+        #   JOIN    #
+        if message[0] == "JOIN":
+            # join-exist is sent to peer,
+            # if an account with this username already exists
+            if db.is_account_exist(message[1]):
+                response = "join-exist"
+                print("From-> " + self.ip + ":" + str(self.port) + " " + response)
+                logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                self.tcpClientSocket.send(response.encode())
+            # join-success is sent to peer,
+            # if an account with this username is not exist, and the account is created
+            # edited this section to add hashing
+            else:
+                is_valid, validation_message = is_password_valid(message[2])
+                if is_valid:
+                    hashed_password = hash_password(message[2])
+                    db.register(message[1], hashed_password)
+                    response = "join-success"
+                else:
+                    response = "join-invalid-password: " + validation_message
+                logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                self.tcpClientSocket.send(response.encode())
+    except Exception as e:
+        logging.error(str(e))
+
 
     # main of the thread
     def run(self):
@@ -52,9 +90,15 @@ class ClientThread(threading.Thread):
                         self.tcpClientSocket.send(response.encode())
                     # join-success is sent to peer,
                     # if an account with this username is not exist, and the account is created
+                    # edited this section to add hashing
                     else:
-                        db.register(message[1], message[2])
-                        response = "join-success"
+                        is_valid, validation_message = is_password_valid(message[2])
+                        if is_valid:
+                            hashed_password = hash_password(message[2])
+                            db.register(message[1], hashed_password)
+                            response = "join-success"
+                        else:
+                            response = "join-invalid-password: " + validation_message
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
                 #   LOGIN    #
@@ -74,11 +118,10 @@ class ClientThread(threading.Thread):
                     # login-success is sent to peer,
                     # if an account with the username exists and not online
                     else:
-                        # retrieves the account's password, and checks if the one entered by the user is correct
-                        retrievedPass = db.get_password(message[1])
-                        # if password is correct, then peer's thread is added to threads list
-                        # peer is added to db with its username, port number, and ip address
-                        if retrievedPass == message[2]:
+                        # retrieves the account's hashed password, and checks
+                        # if the one entered by the user(after hashing it) is correct
+                        hashed_password = db.get_password(message[1])
+                        if check_password(hashed_password, message[2]):
                             self.username = message[1]
                             self.lock.acquire()
                             try:
@@ -101,6 +144,7 @@ class ClientThread(threading.Thread):
                             response = "login-wrong-password"
                             logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                             self.tcpClientSocket.send(response.encode())
+
                 #   LOGOUT  #
                 elif message[0] == "LOGOUT":
                     # if user is online,

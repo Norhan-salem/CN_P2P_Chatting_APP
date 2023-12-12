@@ -408,6 +408,14 @@ class peerMain:
             print("Account created...")
         elif response == "join-exist":
             print("choose another username or login...")
+        elif response == "password-not-long":
+            print("Password must be at least 8 characters long.")
+        elif response == "pass-not-contain-number":
+            print("Password must contain at least one numeral.")
+        elif response == "pass-not-contain-cap":
+            print("Password must contain at least one capital letter")
+        elif response == "pass-not-contain-special":
+            print("Password must contain at least one special character.")
 
     # login function
     def login(self, username, password, peerServerPort):
