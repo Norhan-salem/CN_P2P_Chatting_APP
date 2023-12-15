@@ -68,7 +68,7 @@ class PeerServer(threading.Thread):
                 readable, writable, exceptional = select.select(inputs, [], [])
                 # If a server waits to be connected enters here
                 for s in readable:
-                    # if the socket that is receiving the connection is 
+                    # if the socket that is receiving the connection is
                     # the tcp socket of the peer's server, enters here
                     if s is self.tcpServerSocket:
                         # accepts the connection, and adds its connection socket to the inputs list
@@ -111,7 +111,7 @@ class PeerServer(threading.Thread):
                             # chatting with and if the user is already chatting with someone else(isChatRequested =
                             # 1), then enters here
                             elif s is not self.connectedPeerSocket and self.isChatRequested == 1:
-                                # sends a busy message to the peer that sends a chat request when this peer is 
+                                # sends a busy message to the peer that sends a chat request when this peer is
                                 # already chatting with someone else
                                 message = "BUSY"
                                 s.send(message.encode())
@@ -126,7 +126,7 @@ class PeerServer(threading.Thread):
                         elif messageReceived == "REJECT":
                             self.isChatRequested = 0
                             inputs.remove(s)
-                        # if a message is received, and if this is not a quit message ':q' and 
+                        # if a message is received, and if this is not a quit message ':q' and
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived) != 0:
                             print(self.chattingClientName + ": " + messageReceived)
@@ -334,7 +334,7 @@ class peerMain:
                         self.sendHelloMessage()
 
                 elif choice == "3":
-                    self.logout(2)
+                    self.logout(1)
 
             elif self.isOnline:
                 # Display options for a user who is logged in
