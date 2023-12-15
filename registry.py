@@ -5,26 +5,32 @@
 
 from socket import *
 import threading
+
+import bcrypt
 import select
 import logging
 import db
+
+import db
 import re
+
 
 # Password validation phase 2 :/
 def is_password_valid(password):
     # at least 8 characters
     if len(password) < 8:
-        return False, "Password must be at least 8 characters long."
+        return False, "password-not-long"
     # contains at least one numeral
     if not re.search(r'\d', password):
-        return False, "Password must contain at least one numeral."
+        return False, "pass-not-contain-number"
     # contains at least one capital letter
     if not re.search(r'[A-Z]', password):
-        return False, "Password must contain at least one capital letter."
+        return False, "pass-not-contain-cap"
     # contains at least one special character
     if not re.search(r'\W', password):
-        return False, "Password must contain at least one special character."
+        return False, "pass-not-contain-special"
     return True, "Password is valid."
+
 
 # Password hashing phase 2 :/
 def hash_password(password):
@@ -32,40 +38,30 @@ def hash_password(password):
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
     return hashed.decode()
 
+
 def check_password(hashed_password, user_password):
     # Check hashed password
     return bcrypt.checkpw(user_password.encode(), hashed_password.encode())
 
-while True:
-    try:
-        # waits for incoming messages from peers
-        message = self.tcpClientSocket.recv(1024).decode().split()
-        logging.info("Received from " + self.ip + ":" + str(self.port) + " -> " + " ".join(message))
-        #   JOIN    #
-        if message[0] == "JOIN":
-            # join-exist is sent to peer,
-            # if an account with this username already exists
-            if db.is_account_exist(message[1]):
-                response = "join-exist"
-                print("From-> " + self.ip + ":" + str(self.port) + " " + response)
-                logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
-                self.tcpClientSocket.send(response.encode())
-            # join-success is sent to peer,
-            # if an account with this username is not exist, and the account is created
-            # edited this section to add hashing
-            else:
-                is_valid, validation_message = is_password_valid(message[2])
-                if is_valid:
-                    hashed_password = hash_password(message[2])
-                    db.register(message[1], hashed_password)
-                    response = "join-success"
-                else:
-                    response = "join-invalid-password: " + validation_message
-                logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
-                self.tcpClientSocket.send(response.encode())
-    except Exception as e:
-        logging.error(str(e))
 
+# This class is used to process the peer messages sent to registry
+# for each peer connected to registry, a new client thread is created
+class ClientThread(threading.Thread):
+    # initializations for client thread
+    def __init__(self, ip, port, tcpClientSocket):
+        threading.Thread.__init__(self)
+        # ip of the connected peer
+        self.lock = None
+        self.ip = ip
+        # port number of the connected peer
+        self.port = port
+        # socket of the peer
+        self.tcpClientSocket = tcpClientSocket
+        # username, online status and udp server initializations
+        self.username = None
+        self.isOnline = True
+        self.udpServer = None
+        print("New thread started for " + ip + ":" + str(port))
 
     # main of the thread
     def run(self):
@@ -88,17 +84,19 @@ while True:
                         print("From-> " + self.ip + ":" + str(self.port) + " " + response)
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
-                    # join-success is sent to peer,
-                    # if an account with this username is not exist, and the account is created
-                    # edited this section to add hashing
+                        # join-success is sent to peer,
+                        # if an account with this username is not exist, and the account is created
+                        # edited this section to add hashing
                     else:
                         is_valid, validation_message = is_password_valid(message[2])
                         if is_valid:
                             hashed_password = hash_password(message[2])
                             db.register(message[1], hashed_password)
                             response = "join-success"
+                        elif validation_message:
+                            response = validation_message
                         else:
-                            response = "join-invalid-password: " + validation_message
+                            response = "join-invalid-password"
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
                 #   LOGIN    #
@@ -182,7 +180,7 @@ while True:
                             response = "search-user-not-online"
                             logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                             self.tcpClientSocket.send(response.encode())
-                    # enters if username does not exist 
+                    # enters if username does not exist
                     else:
                         response = "search-user-not-found"
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
@@ -215,6 +213,9 @@ class UDPServer(threading.Thread):
                 del tcpThreads[self.username]
         self.tcpClientSocket.close()
         print("Removed " + self.username + " from online peers")
+        db.user_logout(self.username)
+        #if self.username in tcpThreads:
+             #   del tcpThreads[self.username] 
 
     # resets the timer for udp server
     def resetTimer(self):
@@ -286,7 +287,7 @@ while inputs:
             message = message.decode().split()
             # checks if it is a hello message
             if message[0] == "HELLO":
-                # checks if the account that this hello message 
+                # checks if the account that this hello message
                 # is sent from is online
                 if message[1] in tcpThreads:
                     # resets the timeout for that peer since the hello message is received
