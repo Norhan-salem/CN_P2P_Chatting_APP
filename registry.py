@@ -9,6 +9,9 @@ import threading
 import bcrypt
 import select
 import logging
+
+import CliCleaner
+
 import db
 
 import db
@@ -61,14 +64,14 @@ class ClientThread(threading.Thread):
         self.username = None
         self.isOnline = True
         self.udpServer = None
-        print("New thread started for " + ip + ":" + str(port))
+        CliCleaner.green_message("New thread started for " + ip + ":" + str(port))
 
     # main of the thread
     def run(self):
         # locks for thread which will be used for thread synchronization
         self.lock = threading.Lock()
-        print("Connection from: " + self.ip + ":" + str(port))
-        print("IP Connected: " + self.ip)
+        CliCleaner.blue_message("Connection from: " + self.ip + ":" + str(port))
+        CliCleaner.green_message("IP Connected: " + self.ip)
 
         while True:
             try:
@@ -81,7 +84,7 @@ class ClientThread(threading.Thread):
                     # if an account with this username already exists
                     if db.is_account_exist(message[1]):
                         response = "join-exist"
-                        print("From-> " + self.ip + ":" + str(self.port) + " " + response)
+                        CliCleaner.blue_message("From-> " + self.ip + ":" + str(self.port) + " " + response)
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
                         # join-success is sent to peer,
@@ -158,7 +161,7 @@ class ClientThread(threading.Thread):
                                 del tcpThreads[message[1]]
                         finally:
                             self.lock.release()
-                        print(self.ip + ":" + str(self.port) + " is logged out")
+                        CliCleaner.blue_message(self.ip + ":" + str(self.port) + " is logged out")
                         self.tcpClientSocket.close()
                         self.udpServer.timer.cancel()
                         break
@@ -212,10 +215,10 @@ class UDPServer(threading.Thread):
             if self.username in tcpThreads:
                 del tcpThreads[self.username]
         self.tcpClientSocket.close()
-        print("Removed " + self.username + " from online peers")
+        CliCleaner.red_message("Removed " + self.username + " from online peers")
         db.user_logout(self.username)
         #if self.username in tcpThreads:
-             #   del tcpThreads[self.username] 
+             #   del tcpThreads[self.username]
 
     # resets the timer for udp server
     def resetTimer(self):
@@ -225,7 +228,7 @@ class UDPServer(threading.Thread):
 
 
 # tcp and udp server port initializations
-print("Registry started...")
+CliCleaner.green_message("Registry started...")
 port = 15600
 portUDP = 15500
 
@@ -244,8 +247,8 @@ except gaierror:
 
     host = ni.ifaddresses('en0')[ni.AF_INET][0]['addr']
 
-print("Registry IP address: " + host)
-print("Registry port number: " + str(port))
+CliCleaner.blue_message("Registry IP address: " + host)
+CliCleaner.blue_message("Registry port number: " + str(port))
 
 # onlinePeers list for online account
 onlinePeers = {}
@@ -270,7 +273,7 @@ logging.basicConfig(filename="registry.log", level=logging.INFO)
 # as long as at least a socket exists to listen registry runs
 while inputs:
 
-    print("Listening for incoming connections...")
+    CliCleaner.blue_message("Listening for incoming connections...")
     # monitors for the incoming connections
     readable, writable, exceptional = select.select(inputs, [], [])
     for s in readable:
@@ -292,7 +295,7 @@ while inputs:
                 if message[1] in tcpThreads:
                     # resets the timeout for that peer since the hello message is received
                     tcpThreads[message[1]].resetTimeout()
-                    print("Hello is received from " + message[1])
+                    CliCleaner.green_message("Hello is received from " + message[1])
                     logging.info(
                         "Received from " + clientAddress[0] + ":" + str(clientAddress[1]) + " -> " + " ".join(message))
 
