@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
 
 
 class DB:
@@ -37,3 +38,54 @@ class DB:
     def get_peer_ip_port(self, username):
         res = self.db.online_peers.find_one({"username": username})
         return (res["ip"], res["port"]) if res else (None, None)
+
+    def register_room(self, roomId):
+        # Check if the roomId already exists in the database
+        if self.db.rooms.find_one({"roomId": roomId}):
+            raise ValueError(f"Room with id {roomId} already exists.")
+
+        room = {
+            "roomId": roomId,
+            "peers": []
+        }
+
+        # Store the room information in the database
+        self.db.rooms.insert_one(room)
+
+    def get_available_rooms(self):
+        projection = {'roomId': 1, '_id': 0}
+        return list(self.db.rooms.find({}, projection))
+
+    def get_online_list(self):
+        projection = {'username': 1, '_id': 0}
+        return list(self.db.online_peers.find({}, projection))
+
+    # checks if an room with the id exists
+    def is_room_exist(self, roomId):
+        if len(list(self.db.rooms.find({'roomId': roomId}))) > 0:
+            return True
+        else:
+            return False
+
+    # Needed when we flood a message
+    def get_room_peers(self, roomId):
+        res = self.db.rooms.find_one({"roomId": roomId})
+        return res["_id"], res["peers"]
+
+    def update_room(self, roomId, peers):
+        projection = {"_id": roomId}
+        update_data = {
+            "$set": {"peers": peers}
+        }
+        self.db.rooms.update_one(projection, update_data)
+
+    def remove_peer(self, roomId, peer):
+        projection = {"roomId": roomId}
+        update_data = {
+            "$pull": {"peers": peer}
+        }
+        self.db.rooms.update_one(projection, update_data)
+
+
+
+
