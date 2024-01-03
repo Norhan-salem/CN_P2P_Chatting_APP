@@ -86,6 +86,13 @@ class DB:
         }
         self.db.rooms.update_one(projection, update_data)
 
+    def delete_user(self, username):
+        # Delete user from accounts collection
+        self.db.accounts.delete_one({"username": username})
 
+        # Delete user from online_peers collection
+        self.db.online_peers.delete_one({"username": username})
 
-
+    def delete_room(self, roomId):
+        # Delete room from rooms collection
+        self.db.rooms.delete_one({"roomId": roomId})
