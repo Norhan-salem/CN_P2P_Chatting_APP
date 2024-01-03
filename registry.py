@@ -1,11 +1,10 @@
 """
-    ##  Implementation of registry
-    ##  150114822 - Eren Ulaş
+    ## Extending Eran Ulas's Chatting Application
+    ## Team 24
 """
 
 from socket import *
 import threading
-
 import bcrypt
 import select
 import logging
@@ -14,7 +13,7 @@ import db
 import re
 
 
-# Password validation phase 2 :/
+# Password validation
 def is_password_valid(password):
     # at least 8 characters
     if len(password) < 8:
@@ -31,7 +30,7 @@ def is_password_valid(password):
     return True, "Password is valid."
 
 
-# Password hashing phase 2 :/
+# Password hashing
 def hash_password(password):
     # Hash a password for the first time
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
@@ -190,6 +189,31 @@ class ClientThread(threading.Thread):
                         db.remove_peer(message[1], message[2])
                         response = "SUCCESS"
                         self.tcpClientSocket.send(response.encode())
+                # *********************UNDER TESTING***************************#
+
+                elif message[0] == "DELETE-USER":
+                    if db.is_account_exist(message[1]):
+                        db.delete_user(message[1])
+                        response = "delete-user-success"
+                        logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                        self.tcpClientSocket.send(response.encode())
+                    else:
+                        response = "delete-user-fail"
+                        logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                        self.tcpClientSocket.send(response.encode())
+                # *********************UNDER TESTING***************************#
+
+                elif message[0] == "DELETE-ROOM":
+                    if db.is_room_exist(message[1]):
+                        db.delete_room(message[1])
+                        response = "delete-room-success"
+                        logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                        self.tcpClientSocket.send(response.encode())
+                    else:
+                        response = "delete-room-fail"
+                        logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
+                        self.tcpClientSocket.send(response.encode())
+
 
                 elif message[0] == "SEARCH":
                     # checks if an account with the username exists
@@ -224,11 +248,11 @@ class ClientThread(threading.Thread):
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
                     else:
-                        response = "join-room-success"
+                        response = "join-room-fail"
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)
                         self.tcpClientSocket.send(response.encode())
 
-                    # enters if username does not exist 
+                    # enters if username does not exist
 
                 elif message[0] == "ROOM-LIST":
                     # checks if an account with the username exists
@@ -242,6 +266,8 @@ class ClientThread(threading.Thread):
                     self.tcpClientSocket.send(str(response).encode())
             except OSError as oErr:
                 logging.error("OSError: {0}".format(oErr))
+            except IndexError as iErr:
+                logging.error("IndexError: {0}".format(iErr))
 
     # function for resetting the timeout for the udp timer thread
     def resetTimeout(self):
