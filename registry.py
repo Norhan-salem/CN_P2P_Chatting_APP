@@ -187,7 +187,10 @@ class ClientThread(threading.Thread):
                 elif message[0] == "EXIT":
                     if db.is_room_exist(message[1]):
                         db.remove_peer(message[1], message[2])
-                        response = "SUCCESS"
+                        response = "room-exit-success"
+                        self.tcpClientSocket.send(response.encode())
+                    else:
+                        response = "room-exit-fail"
                         self.tcpClientSocket.send(response.encode())
                 # *********************UNDER TESTING***************************#
 
@@ -346,7 +349,7 @@ tcpSocket.listen(5)
 inputs = [tcpSocket, udpSocket]
 
 # log file initialization
-logging.basicConfig(filename="registry.log", level=logging.INFO)
+logging.basicConfig(filename="registry.log", filemode='w', level=logging.INFO)
 
 # as long as at least a socket exists to listen registry runs
 while inputs:

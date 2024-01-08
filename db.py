@@ -96,3 +96,5 @@ class DB:
     def delete_room(self, roomId):
         # Delete room from rooms collection
         self.db.rooms.delete_one({"roomId": roomId})
+
+
